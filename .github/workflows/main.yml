@@ -15,30 +15,32 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Download Capstone pre-built
-        run: |
-          curl -L -o capstone.zip https://github.com/capstone-engine/capstone/releases/download/5.0.3/capstone-5.0.3-win64.zip
-          Expand-Archive -Path capstone.zip -DestinationPath C:\capstone-extracted -Force
-          Get-ChildItem C:\capstone-extracted -Recurse | Select-Object FullName
         shell: powershell
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/capstone-engine/capstone/releases/download/5.0.3/capstone-5.0.3-win64.zip" -OutFile "C:\capstone.zip"
+          Expand-Archive -Path "C:\capstone.zip" -DestinationPath "C:\capstone-extracted" -Force
+          Get-ChildItem "C:\capstone-extracted" -Recurse | Select-Object FullName
 
       - name: Setup Capstone paths
+        shell: powershell
         run: |
-          $src = Get-ChildItem C:\capstone-extracted -Recurse -Directory | Select-Object -First 1
-          Write-Host "Found: $($src.FullName)"
+          $root = Get-ChildItem "C:\capstone-extracted" -Directory | Select-Object -First 1
+          Write-Host "Root: $($root.FullName)"
           New-Item -ItemType Directory -Force -Path "C:\Program Files\capstone\include"
           New-Item -ItemType Directory -Force -Path "C:\Program Files\capstone\lib"
-          Copy-Item -Recurse -Force "$($src.FullName)\include\*" "C:\Program Files\capstone\include\"
-          Copy-Item -Force "$($src.FullName)\capstone.lib" "C:\Program Files\capstone\lib\capstone.lib"
+          Copy-Item -Recurse -Force "$($root.FullName)\include\*" "C:\Program Files\capstone\include\"
+          $lib = Get-ChildItem "$($root.FullName)" -Filter "capstone.lib" -Recurse | Select-Object -First 1
+          Copy-Item -Force $lib.FullName "C:\Program Files\capstone\lib\capstone.lib"
+          Write-Host "=== Final structure ==="
           Get-ChildItem "C:\Program Files\capstone" -Recurse | Select-Object FullName
-        shell: powershell
 
       - name: Configure CMake
-        run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
         shell: cmd
+        run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
-        run: cmake --build build --config Release
         shell: cmd
+        run: cmake --build build --config Release
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
