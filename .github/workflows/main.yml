@@ -1,0 +1,54 @@
+name: Build WoWDumpFix
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build:
+    runs-on: windows-2022
+    strategy:
+      matrix:
+        platform: [x64, Win32]
+        include:
+          - platform: x64
+            artifact_name: WoWDumpFix-x64
+            out_dir: x64
+          - platform: Win32
+            artifact_name: WoWDumpFix-x32
+            out_dir: Win32
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build solution (Release | ${{ matrix.platform }})
+        run: |
+          msbuild WoWDumpFix.sln `
+            /p:Configuration=Release `
+            /p:Platform="${{ matrix.platform }}" `
+            /m `
+            /v:minimal
+
+      - name: List output files (debug)
+        run: |
+          echo "=== All build output files ==="
+          Get-ChildItem -Recurse -Include "*.dll","*.dp64","*.pdb" | Select-Object FullName
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: |
+            ${{ matrix.out_dir }}/Release/WoWDumpFix.*
+            WoWDumpFix/${{ matrix.out_dir }}/Release/WoWDumpFix.*
+          if-no-files-found: warn
