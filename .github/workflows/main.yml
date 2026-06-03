@@ -1,54 +1,44 @@
-name: Build WoWDumpFix
+name: Build VMProtectUnpacker
 
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
   pull_request:
-    branches: [ master ]
-  workflow_dispatch:
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    branches: [ main ]
 
 jobs:
   build:
-    runs-on: windows-2022
-    strategy:
-      matrix:
-        platform: [x64, Win32]
-        include:
-          - platform: x64
-            artifact_name: WoWDumpFix-x64
-            out_dir: x64
-          - platform: Win32
-            artifact_name: WoWDumpFix-x32
-            out_dir: Win32
+    runs-on: windows-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v2
-
-      - name: Build solution (Release | ${{ matrix.platform }})
+      - name: Install Capstone via vcpkg
         run: |
-          msbuild WoWDumpFix.sln `
-            /p:Configuration=Release `
-            /p:Platform="${{ matrix.platform }}" `
-            /m `
-            /v:minimal
+          git clone https://github.com/microsoft/vcpkg.git C:/vcpkg
+          C:/vcpkg/bootstrap-vcpkg.bat
+          C:/vcpkg/vcpkg.exe install capstone:x64-windows
+        shell: cmd
 
-      - name: List output files (debug)
+      - name: Copy Capstone to expected path
         run: |
-          echo "=== All build output files ==="
-          Get-ChildItem -Recurse -Include "*.dll","*.dp64","*.pdb" | Select-Object FullName
+          mkdir "C:\Program Files\capstone\include" -ErrorAction SilentlyContinue
+          mkdir "C:\Program Files\capstone\lib" -ErrorAction SilentlyContinue
+          xcopy /E /Y "C:\vcpkg\installed\x64-windows\include\capstone" "C:\Program Files\capstone\include\capstone\"
+          xcopy /Y "C:\vcpkg\installed\x64-windows\lib\capstone.lib" "C:\Program Files\capstone\lib\"
+        shell: powershell
+
+      - name: Configure CMake
+        run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
+        shell: cmd
+
+      - name: Build
+        run: cmake --build build --config Release
+        shell: cmd
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact_name }}
-          path: |
-            ${{ matrix.out_dir }}/Release/WoWDumpFix.*
-            WoWDumpFix/${{ matrix.out_dir }}/Release/WoWDumpFix.*
-          if-no-files-found: warn
+          name: VMProtectUnpacker
+          path: build/Release/VMProtectUnpacker.exe
