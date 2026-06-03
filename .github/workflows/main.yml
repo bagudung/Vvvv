@@ -21,12 +21,18 @@ jobs:
           C:/vcpkg/vcpkg.exe install capstone:x64-windows
         shell: cmd
 
+      - name: Debug - List vcpkg installed files
+        run: |
+          dir C:\vcpkg\installed\x64-windows\include\ /B
+          dir C:\vcpkg\installed\x64-windows\lib\ /B
+        shell: cmd
+
       - name: Copy Capstone to expected path
         run: |
-          mkdir "C:\Program Files\capstone\include" -ErrorAction SilentlyContinue
-          mkdir "C:\Program Files\capstone\lib" -ErrorAction SilentlyContinue
-          xcopy /E /Y "C:\vcpkg\installed\x64-windows\include\capstone" "C:\Program Files\capstone\include\capstone\"
-          xcopy /Y "C:\vcpkg\installed\x64-windows\lib\capstone.lib" "C:\Program Files\capstone\lib\"
+          New-Item -ItemType Directory -Force -Path "C:\Program Files\capstone\include\capstone"
+          New-Item -ItemType Directory -Force -Path "C:\Program Files\capstone\lib"
+          Copy-Item -Recurse -Force "C:\vcpkg\installed\x64-windows\include\capstone\*" "C:\Program Files\capstone\include\capstone\"
+          Copy-Item -Force "C:\vcpkg\installed\x64-windows\lib\capstone.lib" "C:\Program Files\capstone\lib\capstone.lib"
         shell: powershell
 
       - name: Configure CMake
