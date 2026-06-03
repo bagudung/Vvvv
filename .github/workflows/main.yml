@@ -14,24 +14,22 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download Capstone pre-built
+      - name: Build Capstone from source
         shell: powershell
         run: |
-          Invoke-WebRequest -Uri "https://github.com/capstone-engine/capstone/releases/download/5.0.3/capstone-5.0.3-win64.zip" -OutFile "C:\capstone.zip"
-          Expand-Archive -Path "C:\capstone.zip" -DestinationPath "C:\capstone-extracted" -Force
-          Get-ChildItem "C:\capstone-extracted" -Recurse | Select-Object FullName
+          git clone --depth=1 --branch 5.0.9 https://github.com/capstone-engine/capstone.git C:\capstone-src
+          cmake -S C:\capstone-src -B C:\capstone-build `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_INSTALL_PREFIX="C:\Program Files\capstone" `
+            -DCAPSTONE_BUILD_SHARED=OFF `
+            -DCAPSTONE_BUILD_TESTS=OFF `
+            -DCAPSTONE_BUILD_CSTOOL=OFF
+          cmake --build C:\capstone-build --config Release
+          cmake --install C:\capstone-build --config Release
 
-      - name: Setup Capstone paths
+      - name: Verify Capstone installed
         shell: powershell
         run: |
-          $root = Get-ChildItem "C:\capstone-extracted" -Directory | Select-Object -First 1
-          Write-Host "Root: $($root.FullName)"
-          New-Item -ItemType Directory -Force -Path "C:\Program Files\capstone\include"
-          New-Item -ItemType Directory -Force -Path "C:\Program Files\capstone\lib"
-          Copy-Item -Recurse -Force "$($root.FullName)\include\*" "C:\Program Files\capstone\include\"
-          $lib = Get-ChildItem "$($root.FullName)" -Filter "capstone.lib" -Recurse | Select-Object -First 1
-          Copy-Item -Force $lib.FullName "C:\Program Files\capstone\lib\capstone.lib"
-          Write-Host "=== Final structure ==="
           Get-ChildItem "C:\Program Files\capstone" -Recurse | Select-Object FullName
 
       - name: Configure CMake
