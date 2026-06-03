@@ -14,25 +14,22 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Capstone via vcpkg
+      - name: Download Capstone pre-built
         run: |
-          git clone https://github.com/microsoft/vcpkg.git C:/vcpkg
-          C:/vcpkg/bootstrap-vcpkg.bat
-          C:/vcpkg/vcpkg.exe install capstone:x64-windows
-        shell: cmd
+          curl -L -o capstone.zip https://github.com/capstone-engine/capstone/releases/download/5.0.3/capstone-5.0.3-win64.zip
+          Expand-Archive -Path capstone.zip -DestinationPath C:\capstone-extracted -Force
+          Get-ChildItem C:\capstone-extracted -Recurse | Select-Object FullName
+        shell: powershell
 
-      - name: Debug - List vcpkg installed files
+      - name: Setup Capstone paths
         run: |
-          dir C:\vcpkg\installed\x64-windows\include\ /B
-          dir C:\vcpkg\installed\x64-windows\lib\ /B
-        shell: cmd
-
-      - name: Copy Capstone to expected path
-        run: |
-          New-Item -ItemType Directory -Force -Path "C:\Program Files\capstone\include\capstone"
+          $src = Get-ChildItem C:\capstone-extracted -Recurse -Directory | Select-Object -First 1
+          Write-Host "Found: $($src.FullName)"
+          New-Item -ItemType Directory -Force -Path "C:\Program Files\capstone\include"
           New-Item -ItemType Directory -Force -Path "C:\Program Files\capstone\lib"
-          Copy-Item -Recurse -Force "C:\vcpkg\installed\x64-windows\include\capstone\*" "C:\Program Files\capstone\include\capstone\"
-          Copy-Item -Force "C:\vcpkg\installed\x64-windows\lib\capstone.lib" "C:\Program Files\capstone\lib\capstone.lib"
+          Copy-Item -Recurse -Force "$($src.FullName)\include\*" "C:\Program Files\capstone\include\"
+          Copy-Item -Force "$($src.FullName)\capstone.lib" "C:\Program Files\capstone\lib\capstone.lib"
+          Get-ChildItem "C:\Program Files\capstone" -Recurse | Select-Object FullName
         shell: powershell
 
       - name: Configure CMake
